@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ML Models (large files)
+*.pt
+*.pth
+*.bin
+model_cache/
