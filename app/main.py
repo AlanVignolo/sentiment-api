@@ -10,7 +10,7 @@ Este archivo:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status      # FIX: agregados Request y status
+from fastapi import FastAPI, Request, status      
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 # Crea la instancia principal de FastAPI con su configuracion
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description=settings.PROJECT_DESCRIPTION,    # FIX: habia dos "description", el segundo pisaba al primero
+    description=settings.PROJECT_DESCRIPTION,    
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",   # URL del esquema OpenAPI
     docs_url=f"{settings.API_V1_PREFIX}/docs",              # URL de la documentacion Swagger
@@ -74,15 +74,15 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # en produccion, poner dominios especificos
     allow_credentials=True,
-    allow_methods=["*"],        # FIX: era allozw_methods (typo)
+    allow_methods=["*"],        
     allow_headers=["*"],
 )
 
 # ---- EXCEPTION HANDLERS ----
 # Interceptan errores especificos y los convierten en respuestas JSON limpias
 
-@app.exception_handler(SentimentAPIException)   # FIX: faltaba el argumento (SentimentAPIException)
-async def sentiment_api_exception_handler(       # FIX: era sentiment_apli_ (typo)
+@app.exception_handler(SentimentAPIException)
+async def sentiment_api_exception_handler(       
     request: Request,
     exc: SentimentAPIException
 ):
@@ -105,12 +105,22 @@ async def validation_exception_handler(
 ):
     """Captura errores de validacion de Pydantic (campos faltantes, tipos incorrectos, etc.)"""
     logger.warning(f"Validation error: {exc.errors()}")
+
+    # FIX: Pydantic V2 incluye el objeto ValueError original dentro de 'ctx'.
+    # JSONResponse no puede serializar excepciones a JSON, hay que convertirlas a string.
+    errors = []
+    for e in exc.errors():
+        error = dict(e)
+        if "ctx" in error:
+            error["ctx"] = {k: str(v) for k, v in error["ctx"].items()}
+        errors.append(error)
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,   # 422 = datos invalidos
         content={
             "error": "VALIDATION_ERROR",
             "message": "Error de validacion de los datos enviados",
-            "details": exc.errors()
+            "details": errors
         }
     )
 
