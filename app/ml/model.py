@@ -6,10 +6,13 @@ Carga el modelo de HuggingFace una sola vez y lo reutiliza para todas las predic
 import time
 from typing import List, Optional
 
-from transformers import pipeline, Pipeline  # pipeline = funcion de HuggingFace que simplifica usar modelos
+from transformers import (  # pipeline = funcion de HuggingFace que simplifica usar modelos
+    Pipeline,
+    pipeline,
+)
 
 from app.config import settings
-from app.core import get_logger, ModelNotLoadedError, PredictionError
+from app.core import ModelNotLoadedError, PredictionError, get_logger
 from app.schemas import SentimentLabel
 
 logger = get_logger(__name__)
@@ -23,9 +26,9 @@ class SentimentModel:
     """
 
     # Variables de clase (compartidas por todas las instancias, que en este caso es una sola)
-    _instance: Optional['SentimentModel'] = None   # la unica instancia
-    _pipeline: Optional[Pipeline] = None           # el modelo cargado
-    _is_loaded: bool = False                       # flag de "ya cargo?"
+    _instance: Optional["SentimentModel"] = None  # la unica instancia
+    _pipeline: Optional[Pipeline] = None  # el modelo cargado
+    _is_loaded: bool = False  # flag de "ya cargo?"
 
     def __new__(cls):
         """Singleton: si ya existe una instancia, devuelve esa. Si no, crea una nueva."""
@@ -55,7 +58,7 @@ class SentimentModel:
             return
 
         logger.info(f"Cargando modelo: {settings.MODEL_NAME}")
-        start_time = time.time()        # marca el inicio para medir cuanto tarda
+        start_time = time.time()  # marca el inicio para medir cuanto tarda
 
         try:
             # pipeline() de HuggingFace: carga modelo + tokenizer y los deja listos para usar
@@ -64,11 +67,11 @@ class SentimentModel:
                 task="sentiment-analysis",
                 model=settings.MODEL_NAME,
                 tokenizer=settings.MODEL_NAME,
-                device=-1               # -1 = usa CPU, 0 = usaria la primera GPU
+                device=-1,  # -1 = usa CPU, 0 = usaria la primera GPU
             )
 
             self._is_loaded = True
-            load_time = time.time() - start_time    # calcula cuanto tardo
+            load_time = time.time() - start_time  # calcula cuanto tardo
 
             logger.info(f"Modelo cargado en {load_time:.2f} segundos")
 
@@ -89,9 +92,12 @@ class SentimentModel:
             start_time = time.time()
 
             # Le pasa el texto al modelo. top_k=None devuelve scores para TODAS las clases
+            # assert: le dice a mypy que en este punto _pipeline NUNCA es None
+            # (ya lo verificamos con self.is_loaded arriba, pero mypy no lo infiere solo)
+            assert self._pipeline is not None
             result = self._pipeline(text, top_k=None)
 
-            processing_time = (time.time() - start_time) * 1000    # convierte a milisegundos
+            processing_time = (time.time() - start_time) * 1000  # convierte a milisegundos
 
             # Con top_k=None el modelo devuelve [{"label": "POSITIVE", "score": 0.95}, {"label": "NEGATIVE", "score": 0.05}]
             # Ya es una lista directa, no hace falta result[0]
@@ -105,33 +111,24 @@ class SentimentModel:
                 "POSITIVE": SentimentLabel.POSITIVE,
                 "NEGATIVE": SentimentLabel.NEGATIVE,
                 "NEUTRAL": SentimentLabel.NEUTRAL,
-                "LABEL_0": SentimentLabel.NEGATIVE,    # algunos modelos usan LABEL_0/LABEL_1
+                "LABEL_0": SentimentLabel.NEGATIVE,  # algunos modelos usan LABEL_0/LABEL_1
                 "LABEL_1": SentimentLabel.POSITIVE,
             }
 
             # .get() busca en el diccionario. Si no encuentra, usa NEUTRAL como fallback
-            sentiment = label_mapping.get(
-                best["label"].upper(),
-                SentimentLabel.NEUTRAL
-            )
+            sentiment = label_mapping.get(best["label"].upper(), SentimentLabel.NEUTRAL)
 
             # Construye la lista de scores con nuestros labels
             normalized_scores = []
             for s in scores:
-                mapped_label = label_mapping.get(
-                    s["label"].upper(),
-                    SentimentLabel.NEUTRAL
-                )
-                normalized_scores.append({
-                    "label": mapped_label,
-                    "score": s["score"]
-                })
+                mapped_label = label_mapping.get(s["label"].upper(), SentimentLabel.NEUTRAL)
+                normalized_scores.append({"label": mapped_label, "score": s["score"]})
 
             return {
                 "sentiment": sentiment,
                 "confidence": best["score"],
                 "scores": normalized_scores,
-                "processing_time_ms": processing_time
+                "processing_time_ms": processing_time,
             }
 
         except Exception as e:

@@ -7,14 +7,14 @@ import time
 from typing import Optional
 
 from app.core import get_logger
+from app.ml.model import SentimentModel, sentiment_model
 from app.ml.preprocessor import TextPreprocessor
-from app.ml.model import sentiment_model, SentimentModel
 from app.schemas import (
+    BatchSentimentRequest,
+    BatchSentimentResponse,
     SentimentRequest,
     SentimentResponse,
     SentimentScore,
-    BatchSentimentRequest,
-    BatchSentimentResponse,
 )
 
 logger = get_logger(__name__)
@@ -29,7 +29,7 @@ class SentimentPipeline:
     def __init__(
         self,
         model: Optional[SentimentModel] = None,
-        preprocessor: Optional[TextPreprocessor] = None
+        preprocessor: Optional[TextPreprocessor] = None,
     ):
         """Inicializa el pipeline con modelo y preprocesador."""
         # "or" funciona asi: si model es None, usa sentiment_model (el global)
@@ -55,22 +55,19 @@ class SentimentPipeline:
         prediction = self.model.predict(processed_text)
 
         # Paso 3: Construir la respuesta con el formato que espera la API
-        total_time = (time.time() - start_time) * 1000    # convierte a milisegundos
+        total_time = (time.time() - start_time) * 1000  # convierte a milisegundos
 
         # Convierte los scores crudos del modelo a objetos SentimentScore (schema de pydantic)
-        scores = [
-            SentimentScore(label=s["label"], score=s["score"])
-            for s in prediction["scores"]
-        ]
+        scores = [SentimentScore(label=s["label"], score=s["score"]) for s in prediction["scores"]]
 
         # Arma el SentimentResponse completo con todos los campos
         response = SentimentResponse(
-            text=request.text,                        # texto original (no el limpio)
-            sentiment=prediction["sentiment"],        # POSITIVE/NEGATIVE/NEUTRAL
-            confidence=prediction["confidence"],      # que tan seguro esta (0-1)
-            scores=scores,                            # puntuacion de cada sentimiento
-            processing_time_ms=total_time,            # cuanto tardo en ms
-            model_version=self.model.model_name       # nombre del modelo usado
+            text=request.text,  # texto original (no el limpio)
+            sentiment=prediction["sentiment"],  # POSITIVE/NEGATIVE/NEUTRAL
+            confidence=prediction["confidence"],  # que tan seguro esta (0-1)
+            scores=scores,  # puntuacion de cada sentimiento
+            processing_time_ms=total_time,  # cuanto tardo en ms
+            model_version=self.model.model_name,  # nombre del modelo usado
         )
 
         logger.info(
@@ -92,15 +89,15 @@ class SentimentPipeline:
         for text in request.texts:
             # Crea un SentimentRequest individual por cada texto de la lista
             single_request = SentimentRequest(text=text, language=request.language)
-            result = self.analyze(single_request)      # reutiliza el metodo de arriba
+            result = self.analyze(single_request)  # reutiliza el metodo de arriba
             results.append(result)
 
         total_time = (time.time() - start_time) * 1000
 
         return BatchSentimentResponse(
-            results=results,                           # lista de SentimentResponse
-            total_processing_time_ms=total_time,       # tiempo total (todos los textos)
-            texts_analyzed=len(request.texts)           # cuantos textos se analizaron
+            results=results,  # lista de SentimentResponse
+            total_processing_time_ms=total_time,  # tiempo total (todos los textos)
+            texts_analyzed=len(request.texts),  # cuantos textos se analizaron
         )
 
 

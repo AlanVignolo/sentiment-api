@@ -5,15 +5,15 @@ Define las URLs POST /analyze y /analyze/batch para analizar texto.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core import get_logger, SentimentAPIException
 from app.api.dependencies import get_sentiment_pipeline
+from app.core import SentimentAPIException, get_logger
 from app.ml import SentimentPipeline
 from app.schemas import (
-    SentimentRequest,
-    SentimentResponse,
     BatchSentimentRequest,
     BatchSentimentResponse,
     ErrorResponse,
+    SentimentRequest,
+    SentimentResponse,
 )
 
 logger = get_logger(__name__)
@@ -24,24 +24,24 @@ router = APIRouter()
 @router.post(
     "/analyze",
     response_model=SentimentResponse,
-    status_code=status.HTTP_200_OK,        # FIX: era HHTP_200_OK (typo)
+    status_code=status.HTTP_200_OK,  # FIX: era HHTP_200_OK (typo)
     summary="Analizar sentimiento de un texto",
     description="Analiza el sentimiento de un texto y devuelve la clasificacion con confianza",
     responses={
         200: {"description": "Analisis exitoso", "model": SentimentResponse},
         400: {"description": "Request invalido", "model": ErrorResponse},
-        503: {"description": "Servicio no disponible (modelo no cargado)", "model": ErrorResponse}
-    }
+        503: {"description": "Servicio no disponible (modelo no cargado)", "model": ErrorResponse},
+    },
 )
 async def analyze_sentiment(
     request: SentimentRequest,
-    pipeline: SentimentPipeline = Depends(get_sentiment_pipeline)   # FastAPI inyecta el pipeline
+    pipeline: SentimentPipeline = Depends(get_sentiment_pipeline),  # FastAPI inyecta el pipeline
 ) -> SentimentResponse:
     """Analiza el sentimiento de un texto unico."""
     logger.info(f"Recibido request de analisis: {len(request.text)} caracteres")
 
     try:
-        response = pipeline.analyze(request)    # delega todo al pipeline de ML
+        response = pipeline.analyze(request)  # delega todo al pipeline de ML
         return response
 
     except SentimentAPIException as e:
@@ -49,11 +49,7 @@ async def analyze_sentiment(
         logger.error(f"Error de aplicacion: {e.message}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": e.error_code,
-                "message": e.message,
-                "details": e.details
-            }
+            detail={"error": e.error_code, "message": e.message, "details": e.details},
         )
 
     except Exception as e:
@@ -61,10 +57,7 @@ async def analyze_sentiment(
         logger.exception(f"Error inesperado: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "INTERNAL_ERROR",
-                "message": "Error interno del servidor"
-            }
+            detail={"error": "INTERNAL_ERROR", "message": "Error interno del servidor"},
         )
 
 
@@ -74,11 +67,10 @@ async def analyze_sentiment(
     response_model=BatchSentimentResponse,
     status_code=status.HTTP_200_OK,
     summary="Analizar multiples textos",
-    description="Analiza el sentimiento de multiples textos en una sola llamada"
+    description="Analiza el sentimiento de multiples textos en una sola llamada",
 )
 async def analyze_sentiment_batch(
-    request: BatchSentimentRequest,
-    pipeline: SentimentPipeline = Depends(get_sentiment_pipeline)
+    request: BatchSentimentRequest, pipeline: SentimentPipeline = Depends(get_sentiment_pipeline)
 ) -> BatchSentimentResponse:
     """Analiza multiples textos en batch."""
     logger.info(f"Recibido request batch: {len(request.texts)} textos")
@@ -91,18 +83,12 @@ async def analyze_sentiment_batch(
         logger.error(f"Error de aplicacion: {e.message}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": e.error_code,
-                "message": e.message
-            }
+            detail={"error": e.error_code, "message": e.message},
         )
 
     except Exception as e:
         logger.exception(f"Error inesperado: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "INTERNAL_ERROR",
-                "message": "Error interno del servidor"
-            }
+            detail={"error": "INTERNAL_ERROR", "message": "Error interno del servidor"},
         )

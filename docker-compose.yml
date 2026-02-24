@@ -1,0 +1,51 @@
+version: '3.8'
+
+# docker-compose define uno o varios "servicios" (contenedores) que trabajan juntos.
+# En este caso solo hay uno: la API.
+
+services:
+
+  # Servicio principal: la API de sentimientos
+  api:
+    build:
+      context: .                      # el "." = buscar archivos desde la raiz del proyecto
+      dockerfile: docker/Dockerfile   # donde esta el Dockerfile (en la subcarpeta docker/)
+
+    ports:
+      - "8000:8000"   # "puerto_de_tu_pc:puerto_del_contenedor"
+                      # sin esto, el contenedor corre pero no podrias acceder desde el navegador
+
+    environment:
+      # Variables de entorno que la app lee desde config.py (Settings)
+      - ENV=development
+      - LOG_LEVEL=INFO
+      - MODEL_NAME=distilbert-base-uncased-finetuned-sst-2-english
+
+    volumes:
+      # Monta la carpeta ./app de tu PC dentro del contenedor en /app/app
+      # :ro = read-only (el contenedor puede leer pero no modificar tus archivos)
+      # Util en desarrollo: si cambiás el codigo en tu PC, el contenedor ve los cambios
+      - ./app:/app/app:ro
+
+    healthcheck:
+      # FIX: "curl" no existe en python:3.11-slim (imagen sin herramientas de red).
+      # Se reemplaza por Python puro con urllib.request, que siempre esta disponible.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s       # cada cuanto chequea si la app esta viva
+      timeout: 10s        # si no responde en 10s, cuenta como fallo
+      retries: 3          # despues de 3 fallos seguidos, marca el contenedor como "unhealthy"
+      start_period: 60s   # espera 60s antes del primer chequeo (el modelo tarda en cargar)
+
+    restart: unless-stopped   # si el contenedor se cae por error, Docker lo reinicia automaticamente
+                               # "unless-stopped" = reinicia siempre, excepto si vos lo pares a mano
+
+
+  # Bloque comentado: en produccion se agrega nginx como "proxy reverso" delante de la API.
+  # nginx recibe el trafico en el puerto 80 (http) y lo redirige al puerto 8000 de la API.
+  # Tambien puede manejar SSL (https), rate limiting, y servir archivos estaticos.
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - api

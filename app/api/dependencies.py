@@ -6,8 +6,8 @@ En vez de que cada endpoint busque el pipeline por su cuenta, esta funcion se lo
 
 from typing import Generator
 
-from app.ml import sentiment_pipeline, SentimentPipeline
 from app.core import get_logger
+from app.ml import SentimentPipeline, sentiment_pipeline
 
 logger = get_logger(__name__)
 

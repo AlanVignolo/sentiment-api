@@ -3,8 +3,6 @@ Tests para el pipeline de ML.
 Prueba las 3 capas: TextPreprocessor (limpieza), SentimentModel (prediccion), SentimentPipeline (flujo completo).
 """
 
-import pytest
-
 # Importa los 3 componentes internos del modulo ml para testearlos directamente
 from app.ml import TextPreprocessor, sentiment_model, sentiment_pipeline
 from app.schemas import SentimentRequest
@@ -23,8 +21,8 @@ class TestTextPreprocessor:
         text = "Check this out: https://example.com it's great"
         result = preprocessor.preprocess(text)
 
-        assert "https://example.com" not in result   # la URL desaparecio
-        assert "great" in result                      # el resto del texto quedo
+        assert "https://example.com" not in result  # la URL desaparecio
+        assert "great" in result  # el resto del texto quedo
 
     def test_removes_emails(self):
         """Emails deben ser removidos del texto."""
@@ -32,8 +30,8 @@ class TestTextPreprocessor:
         text = "Contact me at user@example.com for more info."
         result = preprocessor.preprocess(text)
 
-        assert "user@example.com" not in result   # el email desaparecio
-        assert "Contact" in result                 # el resto del texto quedo
+        assert "user@example.com" not in result  # el email desaparecio
+        assert "Contact" in result  # el resto del texto quedo
 
     def test_removes_mentions(self):
         """Test para remover menciones"""
@@ -42,8 +40,8 @@ class TestTextPreprocessor:
         text = "Hello @user, how are you?"
         result = preprocessor.preprocess(text)
 
-        assert "@user" not in result   # la mencion desaparecio
-        assert "Hello" in result       # el resto del texto quedo
+        assert "@user" not in result  # la mencion desaparecio
+        assert "Hello" in result  # el resto del texto quedo
 
     def test_lowercase_when_enabled(self):
         """Test para convertir a minusculas"""
@@ -51,7 +49,7 @@ class TestTextPreprocessor:
         text = "This is A Test."
         result = preprocessor.preprocess(text)
 
-        assert result == "this is a test."   # todo en minusculas
+        assert result == "this is a test."  # todo en minusculas
 
     def test_truncates_long_text(self):
         """Test para truncar texto largo"""
@@ -60,7 +58,7 @@ class TestTextPreprocessor:
         text = "This text is definitely longer than ten characters."
         result = preprocessor.preprocess(text)
 
-        assert len(result) == 10   # exactamente 10 caracteres
+        assert len(result) == 10  # exactamente 10 caracteres
 
     def test_cleans_multiple_spaces(self):
         """Test para limpiar espacios multiples"""
@@ -70,8 +68,8 @@ class TestTextPreprocessor:
         text = "This   is    a   test."
         result = preprocessor.preprocess(text)
 
-        assert "  " not in result            # no hay doble espacio
-        assert result == "This is a test."   # texto normalizado
+        assert "  " not in result  # no hay doble espacio
+        assert result == "This is a test."  # texto normalizado
 
 
 # ============================================================

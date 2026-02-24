@@ -5,12 +5,13 @@ Los usan herramientas de monitoreo, Kubernetes, balanceadores de carga, etc.
 """
 
 import time
+
 from fastapi import APIRouter, status
 
 from app.config import settings
 from app.core import get_logger
 from app.ml import sentiment_model
-from app.schemas import HealthResponse, DetailedHealthResponse, ComponentHealth
+from app.schemas import ComponentHealth, DetailedHealthResponse, HealthResponse
 
 logger = get_logger(__name__)
 
@@ -21,16 +22,15 @@ router = APIRouter()
 # -------- /health - "Estas vivo?" --------
 @router.get(
     "/health",
-    response_model=HealthResponse,           # le dice a FastAPI que la respuesta tiene esta forma
-    status_code=status.HTTP_200_OK,          # 200 = todo bien
+    response_model=HealthResponse,  # le dice a FastAPI que la respuesta tiene esta forma
+    status_code=status.HTTP_200_OK,  # 200 = todo bien
     summary="Health check basico",
-    description="Verifica que el servicio esta corriendo"
+    description="Verifica que el servicio esta corriendo",
 )
 async def health_check() -> HealthResponse:
     """Health check simple: si responde, esta vivo."""
     return HealthResponse(
-        status="healthy",
-        version=settings.VERSION              # la version que definimos en config.py
+        status="healthy", version=settings.VERSION  # la version que definimos en config.py
     )
 
 
@@ -38,14 +38,14 @@ async def health_check() -> HealthResponse:
 @router.get(
     "/health/detailed",
     response_model=DetailedHealthResponse,
-    status_code=status.HTTP_200_OK,           
+    status_code=status.HTTP_200_OK,
     summary="Health check detallado",
-    description="Verifica el estado de cada componente"
+    description="Verifica el estado de cada componente",
 )
 async def detailed_health_check() -> DetailedHealthResponse:
     """Health check que verifica cada componente (modelo, DB, etc)."""
     components = []
-    overall_status = "healthy"                # arranca asumiendo que todo esta bien
+    overall_status = "healthy"  # arranca asumiendo que todo esta bien
 
     # Verificar modelo de ML
     model_start = time.time()
@@ -55,24 +55,21 @@ async def detailed_health_check() -> DetailedHealthResponse:
     else:
         model_status = "unhealthy"
         model_message = "Model not loaded"
-        overall_status = "unhealthy"          # si el modelo falla, el servicio no esta sano
+        overall_status = "unhealthy"  # si el modelo falla, el servicio no esta sano
 
-    model_latency = (time.time() - model_start) * 1000   # cuanto tardo la verificacion en ms
+    model_latency = (time.time() - model_start) * 1000  # cuanto tardo la verificacion en ms
 
     # Agrega el resultado del modelo a la lista de componentes
-    components.append(ComponentHealth(
-        name="ml_model",
-        status=model_status,
-        latency_ms=model_latency,
-        message=model_message
-    ))
+    components.append(
+        ComponentHealth(
+            name="ml_model", status=model_status, latency_ms=model_latency, message=model_message
+        )
+    )
 
     # Aca van otros componentes: base de datos, cache, servicios externos
 
     return DetailedHealthResponse(
-        status=overall_status,
-        version=settings.VERSION,
-        components=components
+        status=overall_status, version=settings.VERSION, components=components
     )
 
 
@@ -81,7 +78,7 @@ async def detailed_health_check() -> DetailedHealthResponse:
     "/ready",
     status_code=status.HTTP_200_OK,
     summary="Readiness check",
-    description="Verifica que el servicio esta listo para recibir trafico"
+    description="Verifica que el servicio esta listo para recibir trafico",
 )
 async def readiness_check():
     """
@@ -91,9 +88,10 @@ async def readiness_check():
     """
     if not sentiment_model.is_loaded:
         from fastapi import HTTPException
+
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,   # 503 = servicio no disponible
-            detail="Model not loaded yet"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,  # 503 = servicio no disponible
+            detail="Model not loaded yet",
         )
 
     return {"status": "ready"}

@@ -1,0 +1,120 @@
+# CI = Continuous Integration (Integracion Continua).
+# Este archivo define acciones automaticas que GitHub ejecuta cada vez que
+# alguien hace push o pull request a la rama main.
+# El objetivo: detectar bugs y errores ANTES de que lleguen a produccion.
+
+name: CI
+
+# "on" define CUANDO se ejecuta este workflow
+on:
+  push:
+    branches: [main]         # se ejecuta cuando se hace push a main
+  pull_request:
+    branches: [main]         # se ejecuta cuando se abre un PR hacia main
+
+# "jobs" define los trabajos que se ejecutan. Cada job corre en una maquina virtual limpia.
+jobs:
+
+  # ── JOB 1: lint ──────────────────────────────────────────────────────────
+  # Verifica que el codigo siga las convenciones de estilo
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest   # usa una maquina virtual con Ubuntu
+    steps:
+      # Paso 1: descarga el codigo del repositorio en la maquina virtual
+      - uses: actions/checkout@v4
+
+      # Paso 2: instala Python 3.11 en la maquina virtual
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'         # guarda cache de pip para que proximas ejecuciones sean mas rapidas
+
+      # Paso 3: instala solo las herramientas de linting (no el proyecto completo)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort
+
+      # Paso 4: black verifica que el formato del codigo sea correcto
+      # --check = solo verifica, no modifica los archivos
+      - name: Check formatting with Black
+        run: black --check app/ tests/
+
+      # Paso 5: isort verifica que los imports esten ordenados correctamente
+      - name: Check imports with isort
+        run: isort --check-only app/ tests/
+
+      # Paso 6: flake8 busca errores de sintaxis y malas practicas en el codigo
+      - name: Lint with flake8
+        run: flake8 app/ tests/
+
+
+  # ── JOB 2: test ──────────────────────────────────────────────────────────
+  # Ejecuta los tests automaticos y mide la cobertura de codigo
+  # Corre en PARALELO con el job "lint" (no depende de el)
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # Instala requirements-dev.txt que incluye:
+      #   - requirements.txt (produccion: fastapi, torch, etc.)
+      #   - pytest, httpx, coverage, black, isort, flake8 (desarrollo)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Ejecuta todos los tests con cobertura
+      # --cov=app          mide cuantas lineas de app/ son ejecutadas por los tests
+      # --cov-report=xml   genera coverage.xml para subir a Codecov
+      # --cov-report=term  muestra el reporte en la terminal
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
+      # Sube el reporte de cobertura a codecov.io (servicio externo que muestra graficos de cobertura)
+      # fail_ci_if_error: false = si codecov falla, el CI no se rompe
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+
+  # ── JOB 3: build ─────────────────────────────────────────────────────────
+  # Construye la imagen Docker para verificar que el Dockerfile funciona
+  # needs: [lint, test] = espera que lint Y test terminen antes de correr
+  build:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    needs: [lint, test]      # solo corre si los dos jobs anteriores pasaron
+    steps:
+      - uses: actions/checkout@v4
+
+      # Buildx es la herramienta moderna de Docker para construir imagenes
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Construye la imagen Docker (sin publicarla)
+      # push: false = solo construye para verificar que funciona, no la sube a ninguna registry
+      # tags: sentiment-api:<hash del commit> = cada build tiene su propio tag unico
+      # cache-from/cache-to: reutiliza capas de Docker de builds anteriores (mas rapido)
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: false
+          tags: sentiment-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

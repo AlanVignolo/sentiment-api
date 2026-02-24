@@ -8,6 +8,7 @@ import sys
 
 from app.config import settings  # importa la config, ahi esta LOG_LEVEL
 
+
 def setup_logging() -> None:
     """
     Configura el logging de la aplicacion.
@@ -17,9 +18,7 @@ def setup_logging() -> None:
 
     # Plantilla que define como se ve cada linea de log
     # asctime=fecha, levelname=tipo (INFO/ERROR), name=modulo, lineno=linea
-    log_format = (
-        "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s"
-    )
+    log_format = "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s"
 
     # Convierte el string "INFO" a la constante logging.INFO (un numero que Python entiende)
     # Si el valor es invalido, usa INFO como fallback
@@ -31,12 +30,13 @@ def setup_logging() -> None:
 
     # Root logger = el logger "padre" del que heredan todos los demas
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)   # solo muestra mensajes de este nivel o mas graves
+    root_logger.setLevel(log_level)  # solo muestra mensajes de este nivel o mas graves
     root_logger.addHandler(handler)
 
     # Silencia logs de librerias externas para que no llenen la consola
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
     logging.getLogger("transformers").setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> logging.Logger:
     """

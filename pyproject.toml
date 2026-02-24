@@ -1,0 +1,59 @@
+# pyproject.toml: archivo central de configuracion del proyecto Python.
+# Reemplaza al viejo setup.py y agrupa la configuracion de multiples herramientas en un solo lugar.
+# Formato: TOML (Tom's Obvious Minimal Language) — parecido a .ini pero mas estricto.
+
+
+# ── Configuracion de mypy (verificador de tipos estaticos) ────────────────────
+[tool.mypy]
+# Muchas librerias de ML (transformers, torch) no incluyen "type stubs" para mypy.
+# ignore_missing_imports = true evita el error "missing library stubs or py.typed marker"
+ignore_missing_imports = true
+
+
+# ── Configuracion de Black (formateador automatico de codigo) ──────────────────
+[tool.black]
+line-length = 100           # largo maximo de linea (black reformatea las que superan esto)
+target-version = ['py311']  # genera codigo compatible con Python 3.11+
+include = '\.pyi?$'         # regex: aplica a archivos .py y .pyi (type stubs)
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+# La regex de exclude usa sintaxis de "verbose regex": cada linea es una alternativa con |
+
+
+# ── Configuracion de isort (ordenador de imports) ─────────────────────────────
+[tool.isort]
+profile = "black"                       # usa el perfil compatible con black (evita conflictos de estilo)
+line_length = 100                       # mismo largo que black para que no haya inconsistencias
+skip = [".git", "venv", ".venv"]        # carpetas que isort no toca
+
+
+# ── Configuracion de pytest (tests) ───────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]           # solo busca tests en la carpeta tests/ (no en app/ ni en la raiz)
+python_files = ["test_*.py"]    # solo archivos que empiezan con "test_"
+python_functions = ["test_*"]   # solo funciones que empiezan con "test_"
+asyncio_mode = "auto"           # pytest-asyncio: detecta tests async automaticamente sin @pytest.mark.asyncio
+addopts = "-v --tb=short"       # opciones que se aplican siempre:
+                                #   -v         = verbose (muestra el nombre de cada test)
+                                #   --tb=short = traceback corto cuando falla (mas legible)
+
+
+# ── Configuracion de coverage (medicion de cobertura de tests) ────────────────
+[tool.coverage.run]
+source = ["app"]                                    # mide cobertura solo del codigo en app/
+omit = ["app/__init__.py", "*/tests/*"]             # ignora archivos de inicializacion y los tests mismos
+
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",                 # lineas marcadas manualmente como "no medir"
+    "if __name__ == .__main__.:",       # bloque que solo corre cuando ejecutas el archivo directamente
+    "raise NotImplementedError",        # metodos abstractos sin implementacion real
+]

@@ -1,0 +1,31 @@
+# Configuracion de flake8: el linter que busca errores y malas practicas en el codigo.
+# flake8 usa formato .ini: secciones entre [corchetes] y clave = valor.
+
+[flake8]
+
+# Largo maximo de una linea. Black usa 88 por defecto, ponemos 100 para ser un poco mas permisivos.
+max-line-length = 100
+
+# Carpetas y archivos que flake8 NO debe revisar.
+# FIX: los items de lista deben estar indentados para que configparser los lea como
+#      continuacion del valor "exclude", no como claves nuevas.
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    build,
+    dist
+
+# Codigos de error que flake8 debe ignorar (porque black ya los maneja o son falsos positivos).
+ignore =
+    E501,  # line too long → black ya controla el largo de linea, flake8 no necesita quejarse
+    W503,  # line break before binary operator → estilo que black genera intencionalmente
+    E203,  # whitespace before ':' → black agrega este espacio en slices como lista[1 : 2]
+    E231   # missing whitespace after ':' → falso positivo en f-strings como {valor:.2f}
+
+# Ignorar errores especificos solo en ciertos archivos.
+# F401 = "imported but unused" → en __init__.py se importa para re-exportar (ej: from app.ml import TextPreprocessor)
+#        y eso no es un error, es el patron intencional de esos archivos.
+per-file-ignores =
+    __init__.py: F401

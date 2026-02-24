@@ -3,7 +3,9 @@
     "allow": [
       "Bash(venvScriptspip install \"numpy<2\")",
       "Bash(venv/Scripts/pip install:*)",
-      "Bash(venv/Scripts/pytest:*)"
+      "Bash(venv/Scripts/pytest:*)",
+      "Bash(venv/Scripts/flake8 app/ tests/)",
+      "Bash(venv/Scripts/mypy app/)"
     ]
   }
 }

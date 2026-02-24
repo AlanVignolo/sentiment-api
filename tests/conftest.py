@@ -7,9 +7,9 @@ sin necesidad de importarlos en cada archivo de test.
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core import setup_logging
 from app.main import app
 from app.ml import sentiment_model
-from app.core import setup_logging
 
 
 # scope="session" = corre UNA SOLA VEZ para toda la sesion de tests (no una vez por test)
@@ -17,7 +17,7 @@ from app.core import setup_logging
 @pytest.fixture(scope="session", autouse=True)
 def setup():
     """Setup que corre una vez antes de todos los tests."""
-    setup_logging()     # configura logging para que los tests muestren logs ordenados
+    setup_logging()  # configura logging para que los tests muestren logs ordenados
 
 
 @pytest.fixture(scope="session")
@@ -58,6 +58,5 @@ def sample_texts():
             "The product arrived on time.",
             "It works as described.",
             "Standard packaging, nothing special.",
-        ]
+        ],
     }
-    
