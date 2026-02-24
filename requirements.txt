@@ -9,6 +9,7 @@ pydantic-settings==2.1.0
 # ML
 transformers==4.37.0
 torch==2.2.0
+numpy<2  # torch 2.2.0 fue compilado con numpy 1.x y es incompatible con numpy 2.x
 
 # Utilities
 python-dotenv==1.0.0
