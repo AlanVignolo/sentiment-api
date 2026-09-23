@@ -18,10 +18,10 @@ curl -X POST "http://localhost:8000/api/v1/sentiment/analyze" \
 {
   "text": "I love this product! It is amazing.",
   "sentiment": "positive",
-  "confidence": 0.9998877048492432,
+  "confidence": 0.9999,
   "scores": [
-    {"label": "positive", "score": 0.9998877048492432},
-    {"label": "negative", "score": 0.0001123345282394439}
+    {"label": "positive", "score": 0.9999},
+    {"label": "negative", "score": 0.0001}
   ],
   "processing_time_ms": 1477.56,
   "model_version": "distilbert-base-uncased-finetuned-sst-2-english",
@@ -41,13 +41,13 @@ Because the model is binary, "neutral" is a label the code can return but the mo
 
 ## Tests
 
-26 tests, 86% coverage, all passing against the pinned dependency versions in `requirements.txt`. Coverage is measured with `pytest --cov=app`, not eyeballed.
+25 tests, 85% coverage, all passing against the pinned dependency versions in `requirements.txt`. Coverage is measured with `pytest --cov=app`, not eyeballed.
 
 What's actually covered: text preprocessing (URL/email/mention stripping, truncation, lowercasing), the prediction pipeline end to end, and the API layer (valid requests, empty text, missing fields, batch counts). The weakest spots are the exception handlers and the model-load failure path — those are written but not exercised by a test that forces a load failure.
 
 ## Limits
 
-- **Language**: only tested against English. I ran a Spanish sentence through it during this review and it happened to classify correctly, but that's not something to rely on — the model wasn't trained for Spanish, and there's no language detection or rejection in the code. The `language` field in the request schema is accepted but not actually used for anything.
+- **Language**: only tested against English. I ran a Spanish sentence through it during this review and it happened to classify correctly, but that's not something to rely on — the model wasn't trained for Spanish, and there's no language detection or rejection in the code. There's no `language` parameter in the request — I pulled it out rather than keep a field that didn't do anything.
 - **Text length**: hard cap at 5000 characters, enforced by Pydantic — anything longer gets a 422 before it reaches the model. Internally there's also a 512-character truncation in the preprocessor, so very long inputs get cut down further before inference; I haven't checked how that interacts with texts that are meaningful past character 512.
 - **Weird input**: empty or whitespace-only text returns 422 with a clear message. I haven't tried emoji-only text, non-Latin scripts, or adversarial inputs — no data on how the model handles those.
 - **Batch endpoint**: caps at 100 texts per call, and it's a plain loop over the single-text path — no batching at the model level, so 100 texts take roughly 100x as long as one.

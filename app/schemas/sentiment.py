@@ -34,12 +34,6 @@ class SentimentRequest(BaseModel):
         examples=["I love this product! It's amazing."],
     )
 
-    language: str = Field(
-        default="en",  # si no mandan idioma, asume ingles
-        description="Codigo de idioma (ISO 639-1)",
-        examples=["en", "es"],
-    )
-
     # Validador personalizado: se ejecuta ANTES de aceptar el valor de "text"
     @field_validator("text")
     @classmethod
@@ -54,7 +48,6 @@ class SentimentRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "text": "This movie was absolutely fantastic! I loved every minute of it.",
-                "language": "en",
             }
         }
 
@@ -132,8 +125,6 @@ class BatchSentimentRequest(BaseModel):
         max_length=100,  # maximo 100 textos por request
         description="Lista de textos a analizar (maximo 100)",
     )
-
-    language: str = Field(default="en")
 
     # Validador que recorre CADA texto de la lista y lo valida individualmente
     @field_validator("texts")

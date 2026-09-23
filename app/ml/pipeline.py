@@ -88,7 +88,7 @@ class SentimentPipeline:
         results = []
         for text in request.texts:
             # Crea un SentimentRequest individual por cada texto de la lista
-            single_request = SentimentRequest(text=text, language=request.language)
+            single_request = SentimentRequest(text=text)
             result = self.analyze(single_request)  # reutiliza el metodo de arriba
             results.append(result)
 

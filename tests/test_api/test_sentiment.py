@@ -76,20 +76,6 @@ class TestSentimentAnalyzeEndpoint:
         assert response.status_code == 422
 
 
-# Test de funcion suelta (fuera de clase): tambien es valido en pytest
-def test_analyze_with_language_parameter(client: TestClient):
-    """El campo opcional 'language' debe aceptarse sin errores."""
-    response = client.post(
-        "/api/v1/sentiment/analyze",
-        json={
-            "text": "I love this product!",
-            "language": "en",  # opcional, default="en" en SentimentRequest
-        },
-    )
-
-    assert response.status_code == 200
-
-
 # ============================================================
 # Tests para POST /api/v1/sentiment/analyze/batch (varios textos)
 # ============================================================
