@@ -1,62 +1,12 @@
 # Sentiment API
 
-API REST para análisis de sentimientos usando Machine Learning.
+REST API for sentiment analysis. Send it English text, get back positive/negative with a confidence score. Built with FastAPI and a HuggingFace transformer model.
 
-![CI](https://github.com/TU_USUARIO/sentiment-api/workflows/CI/badge.svg)
-[![codecov](https://codecov.io/gh/TU_USUARIO/sentiment-api/branch/main/graph/badge.svg)](https://codecov.io/gh/TU_USUARIO/sentiment-api)
+## What it does
 
----
+POST a text to `/api/v1/sentiment/analyze` and it returns a sentiment label, a confidence score, and the full score breakdown. There's also a batch endpoint for up to 100 texts in one call, and three health endpoints for basic liveness, detailed component status, and readiness (whether the model finished loading).
 
-## Descripción
-
-Analiza el sentimiento de textos en inglés usando el modelo `distilbert-base-uncased-finetuned-sst-2-english` de HuggingFace. Devuelve si el texto es **positivo**, **negativo** o **neutral**, con un nivel de confianza.
-
----
-
-## 🚀 Quick Start
-
-### Con Docker (Recomendado)
-
-```bash
-# Clonar repositorio
-git clone https://github.com/TU_USUARIO/sentiment-api.git
-cd sentiment-api
-
-# Construir y ejecutar
-docker-compose up --build
-
-# La API estará disponible en http://localhost:8000
-```
-
-### Sin Docker
-
-```bash
-# Crear entorno virtual
-python -m venv venv
-source venv/bin/activate   # Linux/Mac
-# .\venv\Scripts\activate  # Windows
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Ejecutar
-uvicorn app.main:app --reload
-```
-
----
-
-## 📡 Endpoints
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/` | Información general de la API |
-| GET | `/api/v1/health` | Estado de la API |
-| GET | `/api/v1/health/detailed` | Estado detallado con info del modelo |
-| GET | `/api/v1/health/ready` | Verifica si el modelo está cargado |
-| POST | `/api/v1/sentiment/analyze` | Analiza el sentimiento de un texto |
-| POST | `/api/v1/sentiment/analyze/batch` | Analiza múltiples textos a la vez |
-
-### Ejemplo de uso
+## Try it
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/sentiment/analyze" \
@@ -64,99 +14,62 @@ curl -X POST "http://localhost:8000/api/v1/sentiment/analyze" \
   -d '{"text": "I love this product! It is amazing."}'
 ```
 
-Respuesta:
 ```json
 {
   "text": "I love this product! It is amazing.",
   "sentiment": "positive",
-  "confidence": 0.9998,
+  "confidence": 0.9998877048492432,
   "scores": [
-    {"label": "positive", "score": 0.9998},
-    {"label": "negative", "score": 0.0002}
+    {"label": "positive", "score": 0.9998877048492432},
+    {"label": "negative", "score": 0.0001123345282394439}
   ],
-  "processing_time_ms": 45.2,
-  "model_version": "distilbert-base-uncased-finetuned-sst-2-english"
+  "processing_time_ms": 1477.56,
+  "model_version": "distilbert-base-uncased-finetuned-sst-2-english",
+  "timestamp": "2026-09-23T13:46:55.620091Z"
 }
 ```
 
-La documentación interactiva está disponible en `http://localhost:8000/docs` (Swagger UI).
+That request was the first one after startup, which is why processing took 1.4s. Once the model is warm, the same request runs in 30-50ms on CPU.
 
----
+Interactive docs (Swagger) are at `/api/v1/docs` once the server is running.
 
-## 🧪 Tests
+## Model
+
+The model is `distilbert-base-uncased-finetuned-sst-2-english`, pulled from HuggingFace as-is. It's not fine-tuned or trained on anything of mine — it comes pretrained for binary sentiment (positive/negative) on the SST-2 dataset. My part is the API around it: request validation, text preprocessing (stripping URLs, emails, @mentions before the text hits the model), the batch endpoint, health checks, error handling, and the Docker packaging.
+
+Because the model is binary, "neutral" is a label the code can return but the model itself will basically never produce — the schema and the API support three classes, but in practice you'll only see positive or negative.
+
+## Tests
+
+26 tests, 86% coverage, all passing against the pinned dependency versions in `requirements.txt`. Coverage is measured with `pytest --cov=app`, not eyeballed.
+
+What's actually covered: text preprocessing (URL/email/mention stripping, truncation, lowercasing), the prediction pipeline end to end, and the API layer (valid requests, empty text, missing fields, batch counts). The weakest spots are the exception handlers and the model-load failure path — those are written but not exercised by a test that forces a load failure.
+
+## Limits
+
+- **Language**: only tested against English. I ran a Spanish sentence through it during this review and it happened to classify correctly, but that's not something to rely on — the model wasn't trained for Spanish, and there's no language detection or rejection in the code. The `language` field in the request schema is accepted but not actually used for anything.
+- **Text length**: hard cap at 5000 characters, enforced by Pydantic — anything longer gets a 422 before it reaches the model. Internally there's also a 512-character truncation in the preprocessor, so very long inputs get cut down further before inference; I haven't checked how that interacts with texts that are meaningful past character 512.
+- **Weird input**: empty or whitespace-only text returns 422 with a clear message. I haven't tried emoji-only text, non-Latin scripts, or adversarial inputs — no data on how the model handles those.
+- **Batch endpoint**: caps at 100 texts per call, and it's a plain loop over the single-text path — no batching at the model level, so 100 texts take roughly 100x as long as one.
+
+## Running it
 
 ```bash
-# Instalar dependencias de desarrollo
-pip install -r requirements-dev.txt
-
-# Correr todos los tests
-pytest
-
-# Con reporte de cobertura
-pytest --cov=app --cov-report=term-missing
+docker-compose up --build
 ```
 
-Cobertura actual: **86%** — 26 tests.
+or without Docker:
 
----
-
-## 📁 Estructura del proyecto
-
-```
-sentiment-api/
-├── app/
-│   ├── api/
-│   │   ├── dependencies.py        # inyección de dependencias (Depends)
-│   │   └── v1/
-│   │       ├── endpoints/
-│   │       │   ├── health.py      # endpoints /health
-│   │       │   └── sentiment.py   # endpoints /sentiment/analyze
-│   │       └── router.py          # agrupa todos los routers de v1
-│   ├── core/
-│   │   ├── exceptions.py          # excepciones personalizadas
-│   │   └── logging.py             # configuración de logs
-│   ├── ml/
-│   │   ├── model.py               # wrapper del modelo HuggingFace
-│   │   ├── pipeline.py            # orquestador: preprocesar → predecir → respuesta
-│   │   └── preprocessor.py        # limpieza de texto (URLs, emails, espacios)
-│   ├── schemas/
-│   │   ├── health.py              # schemas de request/response para health
-│   │   └── sentiment.py           # schemas de request/response para sentiment
-│   ├── config.py                  # configuración con variables de entorno
-│   └── main.py                    # app FastAPI, middleware, exception handlers
-├── docker/
-│   └── Dockerfile                 # imagen Docker (multi-stage build)
-├── tests/
-│   ├── conftest.py                # fixtures compartidos (client, load_model)
-│   ├── test_api/
-│   │   ├── test_health.py         # tests de endpoints de salud
-│   │   └── test_sentiment.py      # tests de endpoints de sentimiento
-│   └── test_ml/
-│       └── test_pipeline.py       # tests de preprocesador, modelo y pipeline
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # CI: lint + tests + build Docker automático
-├── docker-compose.yml
-├── pyproject.toml                 # configuración de black, isort, pytest, coverage
-├── .flake8                        # configuración del linter
-├── requirements.txt               # dependencias de producción
-└── requirements-dev.txt           # dependencias de desarrollo (tests, linters)
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
----
+Dev setup (linting, tests): `pip install -r requirements-dev.txt`, then `make test` or `make lint`.
 
-## 🛠️ Tech Stack
+## Stack
 
-| Herramienta | Uso |
-|---|---|
-| **FastAPI** | Framework web para la API REST |
-| **HuggingFace Transformers** | Modelo de ML para análisis de sentimientos |
-| **Pydantic** | Validación de datos y schemas |
-| **Docker** | Containerización |
-| **pytest** | Tests automáticos |
-| **GitHub Actions** | CI/CD automático |
-
----
+FastAPI, HuggingFace Transformers (PyTorch backend, CPU inference), Pydantic v2, Docker (multi-stage build), pytest, GitHub Actions for lint/test/build on push.
 
 ## License
 

@@ -211,3 +211,6 @@ __marimo__/
 *.pth
 *.bin
 model_cache/
+
+# Claude Code local settings
+.claude/
